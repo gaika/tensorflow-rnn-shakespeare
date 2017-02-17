@@ -117,7 +117,9 @@ progress = txt.Progress(DISPLAY_FREQ, size=111+2, msg="Training on next "+str(DI
 
 # init
 init = tf.global_variables_initializer()
-sess = tf.Session()
+config = tf.ConfigProto()
+config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
+sess = tf.Session(config=config)
 sess.run(init)
 step = 0
 
