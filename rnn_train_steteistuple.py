@@ -19,6 +19,9 @@ import os
 import time
 import math
 import my_txtutils as txt
+from tensorflow.python.ops import nn
+from tensorflow.contrib import rnn
+
 tf.set_random_seed(0)
 
 # Full comments in rnn_train.py
@@ -57,8 +60,8 @@ Xo = tf.one_hot(X, ALPHASIZE, 1.0, 0.0)                 # [ BATCHSIZE, SEQLEN, A
 Y_ = tf.placeholder(tf.uint8, [None, None], name='Y_')  # [ BATCHSIZE, SEQLEN ]
 Yo_ = tf.one_hot(Y_, ALPHASIZE, 1.0, 0.0)               # [ BATCHSIZE, SEQLEN, ALPHASIZE ]
 
-onecell = tf.nn.rnn_cell.GRUCell(INTERNALSIZE)
-multicell = tf.nn.rnn_cell.MultiRNNCell([onecell]*NLAYERS, state_is_tuple=True)
+onecell = rnn.GRUCell(INTERNALSIZE)
+multicell = rnn.MultiRNNCell([onecell]*NLAYERS, state_is_tuple=True)
 
 # When using state_is_tuple=True, you must use multicell.zero_state
 # to create a tuple of  placeholders for the input states (one state per layer).
@@ -66,7 +69,7 @@ multicell = tf.nn.rnn_cell.MultiRNNCell([onecell]*NLAYERS, state_is_tuple=True)
 # shaped initial zero state to use when starting your training loop.
 zerostate = multicell.zero_state(BATCHSIZE, dtype=tf.float32)
 
-Yr, H = tf.nn.dynamic_rnn(multicell, Xo, dtype=tf.float32, initial_state=zerostate)
+Yr, H = nn.dynamic_rnn(multicell, Xo, dtype=tf.float32, initial_state=zerostate)
 # Yr: [ BATCHSIZE, SEQLEN, INTERNALSIZE ]
 # H:  [ BATCHSIZE, INTERNALSIZE*NLAYERS ] # this is the last state in the sequence
 
@@ -81,9 +84,9 @@ H = tf.identity(H, name='H')  # just to give it a name
 Yflat = tf.reshape(Yr, [-1, INTERNALSIZE])    # [ BATCHSIZE x SEQLEN, INTERNALSIZE ]
 Ylogits = layers.linear(Yflat, ALPHASIZE)     # [ BATCHSIZE x SEQLEN, ALPHASIZE ]
 Yflat_ = tf.reshape(Yo_, [-1, ALPHASIZE])     # [ BATCHSIZE x SEQLEN, ALPHASIZE ]
-loss = tf.nn.softmax_cross_entropy_with_logits(Ylogits, Yflat_)  # [ BATCHSIZE x SEQLEN ]
+loss = nn.softmax_cross_entropy_with_logits(logits=Ylogits, labels=Yflat_)  # [ BATCHSIZE x SEQLEN ]
 loss = tf.reshape(loss, [batchsize, -1])      # [ BATCHSIZE, SEQLEN ]
-Yo = tf.nn.softmax(Ylogits, name='Yo')        # [ BATCHSIZE x SEQLEN, ALPHASIZE ]
+Yo = nn.softmax(Ylogits, name='Yo')        # [ BATCHSIZE x SEQLEN, ALPHASIZE ]
 Y = tf.argmax(Yo, 1)                          # [ BATCHSIZE x SEQLEN ]
 Y = tf.reshape(Y, [batchsize, -1], name="Y")  # [ BATCHSIZE, SEQLEN ]
 train_step = tf.train.AdamOptimizer(lr).minimize(loss)
